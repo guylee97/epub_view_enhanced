@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart' show IterableExtension;
@@ -12,14 +13,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:transparent_image/transparent_image.dart';
-
+import 'package:http/http.dart' as http;
 export 'package:epub_parser/epub_parser.dart';
 
 part '../epub_controller.dart';
 part '../helpers/epub_view_builders.dart';
 
+
 const _minTrailingEdge = 0.55;
 const _minLeadingEdge = -0.05;
+const String uri="http://10.0.2.2:5000";
 
 typedef ExternalLinkPressed = void Function(String href);
 
@@ -36,6 +39,7 @@ class EpubView extends StatefulWidget {
       options: DefaultBuilderOptions(),
     ),
     this.shrinkWrap = false,
+    required this.jsonBody,
     Key? key,
   }) : super(key: key);
 
@@ -55,6 +59,10 @@ class EpubView extends StatefulWidget {
   /// Builders
   final EpubViewBuilders builders;
 
+  //Json
+  final String jsonBody;
+
+
   @override
   State<EpubView> createState() => _EpubViewState();
 }
@@ -69,12 +77,18 @@ class _EpubViewState extends State<EpubView> {
   EpubChapterViewValue? _currentValue;
   final _chapterIndexes = <int>[];
   int highlightedPara = -1;
-
+  int positionTemp=0;
+  String? cfi;
+  List<Data> listdatas = [];
   EpubController get _controller => widget.controller;
 
   @override
   void initState() {
     super.initState();
+    List<dynamic> parsedJson = jsonDecode(widget.jsonBody)["data"];
+    for (int i = 0; i < parsedJson.length; i++) {
+      listdatas.add(Data.fromJson(parsedJson[i]));
+    }
     _itemScrollController = ItemScrollController();
     _itemPositionListener = ItemPositionsListener.create();
     _controller._attach(this);
@@ -138,13 +152,56 @@ class _EpubViewState extends State<EpubView> {
     return true;
   }
 
-  void _changeListener() {
+  Future<void> _changeListener() async {
     if (_paragraphs.isEmpty ||
         _itemPositionListener!.itemPositions.value.isEmpty) {
       return;
     }
 
+    cfi=this._epubCfiReader?.generateCfi(
+      book: _controller._document,
+      chapter: this._currentValue?.chapter,
+      paragraphIndex: this._getAbsParagraphIndexBy(
+        positionIndex: this._currentValue?.position.index ?? 0,
+        trailingEdge:
+        this._currentValue?.position.itemTrailingEdge,
+        leadingEdge: this._currentValue?.position.itemLeadingEdge,
+      ),
+    );
+
     final position = _itemPositionListener!.itemPositions.value.first;
+    int listDataIndex=0;
+    if (position.index!=positionTemp) {
+      for(int u=0;u<listdatas.length;u++){
+        if(cfi==listdatas[u].cfi){
+          listDataIndex=u;
+          break;
+        }
+      }
+      listdatas[listDataIndex].toJson();
+      String str_url_server=uri+'/music';
+      var url_server = Uri.parse(str_url_server);
+      http.Response response_server = await http.post(
+          url_server,
+          headers: //<String, String>
+          {
+            'Content-Type': 'application/json',
+          },
+          body: json.encode(listdatas[listDataIndex].toJson())
+      );
+      var responseBody = json.decode(response_server.body);
+      Map<String, dynamic> responseMap = responseBody;
+      var id=responseMap['Location'];
+
+
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(cfi!+id),
+        ),
+      );
+    }
+    positionTemp=position.index;
     final chapterIndex = _getChapterIndexBy(
       positionIndex: position.index,
       trailingEdge: position.itemTrailingEdge,
@@ -161,6 +218,10 @@ class _EpubViewState extends State<EpubView> {
       paragraphNumber: paragraphIndex + 1,
       position: position,
     );
+
+
+
+
     _controller.currentValueListenable.value = _currentValue;
     widget.onChapterChanged?.call(_currentValue);
   }
@@ -481,4 +542,20 @@ class _EpubViewState extends State<EpubView> {
       highlightedPara = para;
     });
   }
+}
+
+class Data{
+  String cfi,emotion,color,weather;
+
+  Data(this.cfi,this.emotion,this.color,this.weather);
+
+  factory Data.fromJson(dynamic json){
+    return Data(json['cfi'] as String, json['emotion'] as String,json['color'] as String,json['weather'] as String,);
+  }
+  Map<String, dynamic> toJson() => {
+    'cfi': cfi,
+    'emotion': emotion,
+    'color' : color,
+    'weather' : weather
+  };
 }

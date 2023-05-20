@@ -19,9 +19,12 @@ dependencies:
   collection: ^1.16.0
   universal_file: ^1.0.0
   transparent_image: ^2.0.0
+  json_annotation: ^4.8.1
+  http: ^0.13.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.1
+  json_serializable: ^6.6.2
 

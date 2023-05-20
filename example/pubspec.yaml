@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  epub_view:
+  epub_view_enhanced:
     path: ../
 
 dev_dependencies:
