@@ -60,7 +60,7 @@ class EpubView extends StatefulWidget {
   final EpubViewBuilders builders;
 
   //Json
-  final String jsonBody;
+  final List<dynamic> jsonBody;
 
 
   @override
@@ -85,9 +85,8 @@ class _EpubViewState extends State<EpubView> {
   @override
   void initState() {
     super.initState();
-    List<dynamic> parsedJson = jsonDecode(widget.jsonBody)["data"];
-    for (int i = 0; i < parsedJson.length; i++) {
-      listdatas.add(Data.fromJson(parsedJson[i]));
+    for (int i = 0; i < widget.jsonBody.length; i++) {
+      listdatas.add(Data.fromJson(widget.jsonBody[i]));
     }
     _itemScrollController = ItemScrollController();
     _itemPositionListener = ItemPositionsListener.create();
